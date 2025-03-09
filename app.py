@@ -8,7 +8,7 @@ from datetime import datetime
 
 # Page configuration
 st.set_page_config(
-    page_title="AI Teaching Assistant by Gary Stanyard",
+    page_title="AI Teaching Assistant",
     page_icon="🧑‍🏫",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -47,6 +47,20 @@ st.markdown("""
         border-radius: 10px;
         padding: 15px;
         border-left: 5px solid #4b2e83;
+        color: #333333;
+    }
+    
+    /* Dark mode compatibility */
+    @media (prefers-color-scheme: dark) {
+        .result-area {
+            background-color: #2e3c50;
+            color: #ffffff;
+        }
+    }
+
+    /* Ensure text is visible in both light and dark modes */
+    .stRadio label, .stCheckbox label, .stTextInput label, .stTextArea label, .stSelectbox label {
+        color: inherit !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -59,6 +73,66 @@ if 'api_key_saved' not in st.session_state:
 if 'history' not in st.session_state:
     st.session_state['history'] = []
 
+# Add theme detection for light/dark mode compatibility
+def get_theme_css():
+    # Create CSS variables based on the current theme
+    return """
+    <style>
+    :root {
+        --text-color: var(--text-color, #333333);
+        --background-color: var(--background-color, #ffffff);
+        --result-bg-color: var(--result-bg-color, #f0f4f8);
+        --result-border-color: var(--result-border-color, #4b2e83);
+    }
+    
+    /* Apply theme-specific variables */
+    .dark-mode {
+        --text-color: #ffffff;
+        --background-color: #1e1e1e;
+        --result-bg-color: #2e3c50;
+        --result-border-color: #7c54e0;
+    }
+    
+    .light-mode {
+        --text-color: #333333;
+        --background-color: #ffffff;
+        --result-bg-color: #f0f4f8;
+        --result-border-color: #4b2e83;
+    }
+    
+    /* Apply to elements */
+    .result-area {
+        background-color: var(--result-bg-color);
+        color: var(--text-color);
+        border-left: 5px solid var(--result-border-color);
+        border-radius: 10px;
+        padding: 15px;
+    }
+    
+    .result-area pre, .result-area code {
+        color: var(--text-color);
+    }
+    </style>
+    
+    <script>
+    // Detect dark mode
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.classList.add('light-mode');
+    }
+    
+    // Listen for theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+        document.body.classList.toggle('dark-mode', event.matches);
+        document.body.classList.toggle('light-mode', !event.matches);
+    });
+    </script>
+    """
+
+# Inject theme detection script
+st.markdown(get_theme_css(), unsafe_allow_html=True)
+
 # Sidebar with API Key entry
 with st.sidebar:
     st.markdown("### Setup")
@@ -68,7 +142,7 @@ with st.sidebar:
         "Enter your Gemini API Key:",
         type="password",
         value=st.session_state['api_key'],
-        help="Get a free API key from Google AI Studio: https://aistudio.google.com//"
+        help="Get a free API key from Google AI Studio: https://aistudio.google.com/apikey/"
     )
     
     if st.button("Save API Key"):
@@ -173,33 +247,19 @@ def configure_genai():
         return True
     return False
 
-# Function to call Gemini API using Gemini 2.0 Flash model
+# Function to call Gemini API
 def call_gemini_api(prompt):
     if not configure_genai():
         st.error("Please save your API key first!")
         return None
     
     try:
-        # Create a client with the user's API key
-        client = genai.Client(api_key=st.session_state['api_key'])
-        
-        # Call the Gemini 2.0 Flash model specifically
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=prompt
-        )
-        
-        # Return the text response
+        model = genai.GenerativeModel('gemini-pro')
+        response = model.generate_content(prompt)
         return response.text
     except Exception as e:
         st.error(f"Error calling Gemini API: {e}")
         return None
-
-# Configure Gemini API with the user's API key
-def configure_genai():
-    if st.session_state['api_key']:
-        return True
-    return False
 
 # Save history
 def save_to_history(tool_name, inputs, result):
@@ -216,7 +276,7 @@ def get_history_json():
     return json.dumps(st.session_state['history'], indent=2)
 
 # Main title
-st.markdown("<div class='main-header'>🧑‍🏫 AI Teaching Assistant by Gary Stanyard</div>", unsafe_allow_html=True)
+st.markdown("<div class='main-header'Teacher Magic by G Stanyard</div>", unsafe_allow_html=True)
 
 # Add history and export function at the bottom
 with st.expander("📜 History & Export", expanded=False):
@@ -339,11 +399,7 @@ elif selected_tool == "MCQ Generator":
                 result = call_gemini_api(prompt)
                 
                 if result:
-                    st.markdown("### Generated Questions:")
-                    st.markdown(f"<div class='result-area'>{result}</div>", unsafe_allow_html=True)
-                    
-                    # Format for printing/export
-                    formatted_result = result.replace("Q:", "**Q:**").replace("A:", "**A:**").replace("Correct:", "**Correct:**").replace("Explanation:", "**Explanation:**").replace("Concepts:", "**Concepts:**")
+                    display_result("Generated Questions", result)
                     
                     # Save to history
                     save_to_history("MCQ Generator", 
