@@ -8,7 +8,7 @@ from datetime import datetime
 
 # Page configuration
 st.set_page_config(
-    page_title="AI Teaching Assistant",
+    page_title="AI Teaching Assistant by Gary Stanyard",
     page_icon="🧑‍🏫",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -68,7 +68,7 @@ with st.sidebar:
         "Enter your Gemini API Key:",
         type="password",
         value=st.session_state['api_key'],
-        help="Get a free API key from Google AI Studio: https://makersuite.google.com/"
+        help="Get a free API key from Google AI Studio: https://aistudio.google.com//"
     )
     
     if st.button("Save API Key"):
