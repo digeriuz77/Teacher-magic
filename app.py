@@ -202,7 +202,7 @@ def get_history_json():
     return json.dumps(st.session_state['history'], indent=2)
 
 # Main title
-st.markdown("<div class='main-header'>🧑‍🏫 AI Teaching Assistant</div>", unsafe_allow_html=True)
+st.markdown("<div class='main-header'>🧑‍🏫 AI Teaching Assistant by Gary Stanyard</div>", unsafe_allow_html=True)
 
 # Add history and export function at the bottom
 with st.expander("📜 History & Export", expanded=False):
