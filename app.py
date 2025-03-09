@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 import pandas as pd
 import json
 import os
@@ -173,19 +173,33 @@ def configure_genai():
         return True
     return False
 
-# Function to call Gemini API
+# Function to call Gemini API using Gemini 2.0 Flash model
 def call_gemini_api(prompt):
     if not configure_genai():
         st.error("Please save your API key first!")
         return None
     
     try:
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content(prompt)
+        # Create a client with the user's API key
+        client = genai.Client(api_key=st.session_state['api_key'])
+        
+        # Call the Gemini 2.0 Flash model specifically
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
+        
+        # Return the text response
         return response.text
     except Exception as e:
         st.error(f"Error calling Gemini API: {e}")
         return None
+
+# Configure Gemini API with the user's API key
+def configure_genai():
+    if st.session_state['api_key']:
+        return True
+    return False
 
 # Save history
 def save_to_history(tool_name, inputs, result):
