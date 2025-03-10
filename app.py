@@ -165,6 +165,8 @@ if st.session_state.get('show_help', False):
             st.session_state['show_help'] = False
             st.rerun()
 
+# Replace the sidebar tool navigation section with this improved version
+
 # Sidebar with API Key entry
 with st.sidebar:
     st.markdown("### Setup")
@@ -187,7 +189,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Tool Navigation
+    # Tool Navigation with direct selection
     tool_categories = {
         "Core Tools": [
             "Prompt Builder"
@@ -220,17 +222,26 @@ with st.sidebar:
         ]
     }
     
-    # Display tool categories in sidebar
-    all_tools = []
-    st.markdown("### Tool Categories")
-    for category, tools in tool_categories.items():
-        st.sidebar.markdown(f"**{category}**")
-        for tool in tools:
-            st.sidebar.markdown(f"- {tool}")
-            all_tools.append(tool)
+    # Initialize selected_tool if not in session state
+    if 'selected_tool' not in st.session_state:
+        st.session_state['selected_tool'] = "Prompt Builder"  # Default tool
     
-    st.sidebar.markdown("---")
-    selected_tool = st.sidebar.radio("Select a Tool:", all_tools)
+    # Display tool categories with clickable options
+    st.markdown("### Tool Categories")
+    
+    for category, tools in tool_categories.items():
+        with st.expander(f"**{category}**", expanded=True):
+            for tool in tools:
+                if st.button(tool, key=f"btn_{tool}", use_container_width=True):
+                    st.session_state['selected_tool'] = tool
+                    st.rerun()
+    
+    # Show currently selected tool
+    st.markdown("---")
+    st.markdown(f"**Currently Selected:** {st.session_state['selected_tool']}")
+
+# Use the selected tool from session state
+selected_tool = st.session_state['selected_tool']
 
 # Get history as JSON
 def get_history_json():
