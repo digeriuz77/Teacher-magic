@@ -1,0 +1,185 @@
+/* styles.css */
+
+/* Theme variables for light/dark mode support */
+:root {
+    --text-color: #333333;
+    --background-color: #ffffff;
+    --result-bg-color: #f0f4f8;
+    --result-border-color: #4b2e83;
+    --secondary-text: #6c757d;
+    --card-bg: #f9f9f9;
+    --button-primary: #4b2e83;
+    --button-hover: #3a2366;
+    --expander-bg: #f5f8fa;
+}
+
+.dark-mode {
+    --text-color: #ffffff;
+    --background-color: #1e1e1e;
+    --result-bg-color: #2e3c50;
+    --result-border-color: #7c54e0;
+    --secondary-text: #adb5bd;
+    --card-bg: #2d3748;
+    --button-primary: #5b42a7;
+    --button-hover: #6b52b7;
+    --expander-bg: #2d3748;
+}
+
+.light-mode {
+    --text-color: #333333;
+    --background-color: #ffffff;
+    --result-bg-color: #f0f4f8;
+    --result-border-color: #4b2e83;
+    --secondary-text: #6c757d;
+    --card-bg: #f9f9f9;
+    --button-primary: #4b2e83;
+    --button-hover: #3a2366;
+    --expander-bg: #f5f8fa;
+}
+
+/* General elements */
+.main-header {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #4b2e83;
+    margin-bottom: 1rem;
+}
+
+.sub-header {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #4b2e83;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.tool-card {
+    background-color: var(--card-bg);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.api-section {
+    background-color: var(--card-bg);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.result-area {
+    background-color: var(--result-bg-color);
+    color: var(--text-color);
+    border-radius: 10px;
+    padding: 15px;
+    border-left: 5px solid var(--result-border-color);
+}
+
+/* Ensure text is visible in both light and dark modes */
+.stRadio label, 
+.stCheckbox label, 
+.stTextInput label, 
+.stTextArea label, 
+.stSelectbox label {
+    color: inherit !important;
+}
+
+/* Result elements */
+.result-area pre, 
+.result-area code {
+    color: var(--text-color);
+}
+
+/* Form styling */
+.input-label {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.helper-text {
+    font-size: 0.85rem;
+    color: var(--secondary-text);
+    margin-top: 2px;
+}
+
+/* Button styling */
+.stButton button {
+    background-color: var(--button-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    transition: background-color 0.3s;
+}
+
+.stButton button:hover {
+    background-color: var(--button-hover);
+}
+
+/* History items */
+.history-item {
+    border-left: 3px solid var(--result-border-color);
+    padding-left: 10px;
+    margin-bottom: 15px;
+}
+
+.history-timestamp {
+    font-size: 0.8rem;
+    color: var(--secondary-text);
+}
+
+/* Tool navigation */
+.tool-category {
+    font-weight: bold;
+    margin-top: 15px;
+    margin-bottom: 5px;
+}
+
+.tool-item {
+    margin-left: 10px;
+    padding: 2px 0;
+}
+
+/* Toolbar buttons */
+.toolbar-button {
+    background-color: transparent;
+    border: 1px solid var(--button-primary);
+    color: var(--button-primary);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 5px;
+    cursor: pointer;
+}
+
+.toolbar-button:hover {
+    background-color: var(--button-primary);
+    color: white;
+}
+
+/* Expandable sections */
+.st-expander {
+    background-color: var(--expander-bg);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+/* Modal styling */
+.modal-content {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    border: 1px solid var(--result-border-color);
+}
+
+/* Links */
+a {
+    color: var(--button-primary);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
