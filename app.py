@@ -137,7 +137,7 @@ if st.session_state.get('show_about', False):
         """)
         if st.button("Close", key="close_about"):
             st.session_state['show_about'] = False
-            st.experimental_rerun()
+            st.rerun()
 
 # Show Help modal
 if st.session_state.get('show_help', False):
@@ -163,7 +163,7 @@ if st.session_state.get('show_help', False):
         """)
         if st.button("Close", key="close_help"):
             st.session_state['show_help'] = False
-            st.experimental_rerun()
+            st.rerun()
 
 # Sidebar with API Key entry
 with st.sidebar:
