@@ -250,10 +250,12 @@ with st.expander("📜 History & Export", expanded=False):
         st.markdown("### Recent Activity")
         for i, item in enumerate(st.session_state['history'][:5]):  # Show last 5 items
             st.markdown(f"**{item['timestamp']} - {item['tool']}**")
-            with st.expander(f"View Details"):
-                st.write("Inputs:", item['inputs'])
-                st.markdown("Result:")
-                st.markdown(item['result'])
+            # Instead of using an expander here, use a collapsible container
+            st.markdown("<details><summary>View Details</summary>", unsafe_allow_html=True)
+            st.write("Inputs:", item['inputs'])
+            st.markdown("Result:")
+            st.markdown(item['result'])
+            st.markdown("</details>", unsafe_allow_html=True)
         
         if len(st.session_state['history']) > 5:
             st.markdown(f"*...and {len(st.session_state['history']) - 5} more items*")
