@@ -97,6 +97,8 @@ if 'history' not in st.session_state:
     st.session_state['history'] = []
 if 'theme' not in st.session_state:
     st.session_state['theme'] = 'light'
+if 'selected_tool' not in st.session_state:
+    st.session_state['selected_tool'] = "Prompt Builder"  # Default tool
 
 # Main title and toolbar
 title_col, spacer, about_col, help_col, theme_col = st.columns([6, 1, 1, 1, 1])
@@ -165,9 +167,7 @@ if st.session_state.get('show_help', False):
             st.session_state['show_help'] = False
             st.rerun()
 
-# Replace the sidebar tool navigation section with this improved version
-
-# Sidebar with API Key entry
+# Sidebar with API Key entry and Tool Selection
 with st.sidebar:
     st.markdown("### Setup")
     st.markdown("#### API Key")
@@ -189,7 +189,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Tool Navigation with direct selection
+    # Tool Categories and Selection
     tool_categories = {
         "Core Tools": [
             "Prompt Builder"
@@ -222,30 +222,20 @@ with st.sidebar:
         ]
     }
     
-    # Initialize selected_tool if not in session state
-    if 'selected_tool' not in st.session_state:
-        st.session_state['selected_tool'] = "Prompt Builder"  # Default tool
-    
-    # Display tool categories with clickable options
     st.markdown("### Tool Categories")
     
+    # Convert nested dictionary to flat list for the radio button
+    all_tools = []
     for category, tools in tool_categories.items():
-        with st.expander(f"**{category}**", expanded=True):
-            for tool in tools:
-                if st.button(tool, key=f"btn_{tool}", use_container_width=True):
-                    st.session_state['selected_tool'] = tool
-                    st.rerun()
+        all_tools.extend(tools)
     
-    # Show currently selected tool
-    st.markdown("---")
-    st.markdown(f"**Currently Selected:** {st.session_state['selected_tool']}")
-
-# Use the selected tool from session state
-selected_tool = st.session_state['selected_tool']
-
-# Get history as JSON
-def get_history_json():
-    return json.dumps(st.session_state['history'], indent=2)
+    # Use radio buttons for tool selection (cleaner UI)
+    selected_tool = st.radio("Select a Tool:", all_tools, index=all_tools.index(st.session_state['selected_tool']))
+    
+    # Update session state when selection changes
+    if selected_tool != st.session_state['selected_tool']:
+        st.session_state['selected_tool'] = selected_tool
+        st.rerun()
 
 # Add history and export function at the bottom
 with st.expander("📜 History & Export", expanded=False):
@@ -261,7 +251,7 @@ with st.expander("📜 History & Export", expanded=False):
         st.markdown("### Recent Activity")
         for i, item in enumerate(st.session_state['history'][:5]):  # Show last 5 items
             st.markdown(f"**{item['timestamp']} - {item['tool']}**")
-            # Instead of using an expander here, use a collapsible container
+            # Use HTML details instead of nested expander
             st.markdown("<details><summary>View Details</summary>", unsafe_allow_html=True)
             st.write("Inputs:", item['inputs'])
             st.markdown("Result:")
