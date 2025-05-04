@@ -237,6 +237,24 @@ with st.sidebar:
         st.session_state['selected_tool'] = selected_tool
         st.rerun()
 
+def get_history_json():
+    """Serializes the session state history to a JSON string."""
+    # Ensure history exists and is a list
+    history_data = st.session_state.get('history', [])
+    if not isinstance(history_data, list):
+        # Handle unexpected type if necessary, or default to empty list
+        history_data = []
+        
+    try:
+        # Convert the list of dictionaries to a JSON string
+        # Use indent for readability in the downloaded file
+        return json.dumps(history_data, indent=4) 
+    except TypeError as e:
+        st.error(f"Error serializing history to JSON: {e}")
+        # Return an empty JSON array string as a fallback
+        return "[]" 
+# --- END OF FUNCTION DEFINITION ---
+
 # Add history and export function at the bottom
 with st.expander("📜 History & Export", expanded=False):
     if len(st.session_state['history']) > 0:
