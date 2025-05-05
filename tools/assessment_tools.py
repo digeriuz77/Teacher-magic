@@ -285,60 +285,83 @@ def render_dok_questions():
                                     "grade_level": grade_level, "dok_levels": dok_levels_str}, 
                                    result)
 
-# Helper function to get video ID from URL
+# Helper function to get video ID from URL (keep as is)
 def get_video_id(url):
-    """Extracts YouTube video ID from various URL formats."""
+    # ... (same code as before) ...
     if not url:
         return None
-    # Regex patterns to cover standard, short, and embed URLs
     patterns = [
-        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})',  # Standard URL
-        r'(?:https?:\/\/)?(?:www\.)?youtu\.be\/([a-zA-Z0-9_-]{11})',           # Short URL
-        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})',   # Embed URL
-        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/v\/([a-zA-Z0-9_-]{11})',       # v/ URL
-        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})'  # Shorts URL
+        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})',
+        r'(?:https?:\/\/)?(?:www\.)?youtu\.be\/([a-zA-Z0-9_-]{11})',
+        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})',
+        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/v\/([a-zA-Z0-9_-]{11})',
+        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})'
     ]
     for pattern in patterns:
         match = re.search(pattern, url)
         if match:
             return match.group(1)
-    return None # Return None if no valid ID found
+    return None
 
-# Helper function to get transcript
+# Helper function to get transcript (MODIFIED)
 def get_transcript(video_id, desired_language_code='en'):
     """Fetches YouTube transcript for a given video ID."""
     if not video_id:
         return None, "Invalid video URL provided."
     try:
-        # Get available transcripts
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-        
-        # Try to find the desired language, fallback to generated, then any available
+
+        transcript = None
+        available_langs = [] # Store available language codes
+
+        # Try finding the exact transcript first
         try:
             transcript = transcript_list.find_manually_created_transcript([desired_language_code])
         except NoTranscriptFound:
             try:
                 transcript = transcript_list.find_generated_transcript([desired_language_code])
             except NoTranscriptFound:
-                # Fallback: Get the first available transcript regardless of language
-                transcript = transcript_list.find_generated_transcript(transcript_list.available_languages)
+                 # If specific language not found, find *any* available transcript
+                 st.warning(f"Transcript in '{desired_language_code}' not found. Trying any available language.")
+                 # Get available language codes safely
+                 available_langs = [t.language_code for t in transcript_list]
+                 if available_langs:
+                     try:
+                        # Try any generated first
+                        transcript = transcript_list.find_generated_transcript(available_langs)
+                     except NoTranscriptFound:
+                         try:
+                            # Try any manual as last resort
+                            transcript = transcript_list.find_manually_created_transcript(available_langs)
+                         except NoTranscriptFound:
+                             pass # transcript remains None if nothing found
+                 
+        # Check if any transcript was actually found
+        if transcript is None:
+             raise NoTranscriptFound(f"No transcript found for this video in any available language.")
 
+        # Fetch the transcript data (list of segments)
+        fetched_segments = transcript.fetch()
 
-        transcript_text = " ".join([entry['text'] for entry in transcript.fetch()])
+        # *** THE FIX IS HERE ***
+        # Use attribute access .text instead of key access ['text']
+        transcript_text = " ".join([entry.text for entry in fetched_segments])
+
         return transcript_text, None # Return transcript and no error
-        
+
     except TranscriptsDisabled:
         return None, "Transcripts are disabled for this video."
-    except NoTranscriptFound:
-         return None, f"No transcript found for this video in any language or for code '{desired_language_code}'. Transcripts might not be available."
+    except NoTranscriptFound as e: # Catch the specific exception raised above too
+         return None, str(e) # Return the informative message
     except Exception as e:
-        # Catch other potential errors (network issues, etc.)
-        return None, f"An error occurred while fetching the transcript: {e}"
+        # Catch other potential errors (network issues, API changes etc.)
+        # Log the full error for debugging if needed: print(f"Unexpected error: {e}")
+        return None, f"An unexpected error occurred while fetching the transcript: {type(e).__name__}" # Return type of error
 
-
-# Tool 5: YouTube Video Questions
+# Tool 5: YouTube Video Questions (keep render function as is)
 def render_youtube_video_questions():
-    """Render the YouTube Video Questions tool."""
+    # ... (rest of your render_youtube_video_questions function remains the same) ...
+    # It correctly calls the modified get_transcript function.
     st.markdown("<div class='sub-header'>🎥 YouTube Video Questions</div>", unsafe_allow_html=True)
     st.markdown("Generates questions **based on the actual transcript** of a YouTube video.")
 
@@ -383,8 +406,6 @@ def render_youtube_video_questions():
         if error_msg:
             st.error(f"Failed to get transcript: {error_msg}")
             st.warning("Cannot generate questions based on video content without a transcript.")
-            # Optionally, you could fall back to the old topic-based generation here,
-            # but it's better to be clear that it failed.
             return # Stop processing
 
         if not transcript_text:
@@ -395,9 +416,7 @@ def render_youtube_video_questions():
         with st.spinner("Transcript found! Generating questions based on video content..."):
             focus_str = ", ".join(question_focus)
 
-            # Limit transcript length to avoid exceeding API context limits (adjust as needed)
-            # A simple truncation strategy. More complex chunking/summarization might be needed for very long videos.
-            MAX_TRANSCRIPT_CHARS = 15000 # Example limit, adjust based on your model's context window
+            MAX_TRANSCRIPT_CHARS = 15000 # Example limit
             if len(transcript_text) > MAX_TRANSCRIPT_CHARS:
                 st.warning(f"Transcript is very long ({len(transcript_text)} chars). Truncating to {MAX_TRANSCRIPT_CHARS} characters for analysis.")
                 transcript_text = transcript_text[:MAX_TRANSCRIPT_CHARS]
@@ -428,24 +447,21 @@ def render_youtube_video_questions():
                 **Answer Key Points:** The transcript mentions Stage A, Stage B, and Stage C as the main stages.
             """
 
-            # Ensure you have the call_gemini_api function available
-            # Make sure it handles potential API errors
             try:
-                 result = call_gemini_api(prompt, st.session_state.get('api_key')) # Use .get for safety
+                 # Assuming call_gemini_api and display_result are defined elsewhere
+                 result = call_gemini_api(prompt, st.session_state.get('api_key')) 
 
                  if result:
-                     display_result("Generated Video Questions (from Transcript)", result) # Assuming display_result exists
-
-                     # Save to history (include info that transcript was used)
+                     display_result("Generated Video Questions (from Transcript)", result) 
+                     # Assuming save_to_history is defined elsewhere
                      save_to_history(st.session_state, "YouTube Video Questions",
                                     {"video_url": video_url,
                                      "grade_level": grade_level, "question_focus": focus_str,
                                      "num_questions": num_questions, "transcript_used": True,
                                      "transcript_length": len(transcript_text)},
-                                    result) # Assuming save_to_history exists
+                                    result)
                  else:
                       st.error("The AI model did not return a result.")
 
             except Exception as e:
                  st.error(f"An error occurred while calling the AI model: {e}")
-                 # Log the error for debugging if needed
