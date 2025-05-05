@@ -1,7 +1,9 @@
 # tools/assessment_tools.py
 import streamlit as st
+import re
 from utils.api import call_gemini_api
 from utils.data import load_educational_data, save_to_history
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 
 def display_result(title, content):
     """Display the result in a formatted area."""
@@ -283,73 +285,167 @@ def render_dok_questions():
                                     "grade_level": grade_level, "dok_levels": dok_levels_str}, 
                                    result)
 
+# Helper function to get video ID from URL
+def get_video_id(url):
+    """Extracts YouTube video ID from various URL formats."""
+    if not url:
+        return None
+    # Regex patterns to cover standard, short, and embed URLs
+    patterns = [
+        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})',  # Standard URL
+        r'(?:https?:\/\/)?(?:www\.)?youtu\.be\/([a-zA-Z0-9_-]{11})',           # Short URL
+        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})',   # Embed URL
+        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/v\/([a-zA-Z0-9_-]{11})',       # v/ URL
+        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})'  # Shorts URL
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None # Return None if no valid ID found
+
+# Helper function to get transcript
+def get_transcript(video_id, desired_language_code='en'):
+    """Fetches YouTube transcript for a given video ID."""
+    if not video_id:
+        return None, "Invalid video URL provided."
+    try:
+        # Get available transcripts
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        
+        # Try to find the desired language, fallback to generated, then any available
+        try:
+            transcript = transcript_list.find_manually_created_transcript([desired_language_code])
+        except NoTranscriptFound:
+            try:
+                transcript = transcript_list.find_generated_transcript([desired_language_code])
+            except NoTranscriptFound:
+                # Fallback: Get the first available transcript regardless of language
+                transcript = transcript_list.find_generated_transcript(transcript_list.available_languages)
+
+
+        transcript_text = " ".join([entry['text'] for entry in transcript.fetch()])
+        return transcript_text, None # Return transcript and no error
+        
+    except TranscriptsDisabled:
+        return None, "Transcripts are disabled for this video."
+    except NoTranscriptFound:
+         return None, f"No transcript found for this video in any language or for code '{desired_language_code}'. Transcripts might not be available."
+    except Exception as e:
+        # Catch other potential errors (network issues, etc.)
+        return None, f"An error occurred while fetching the transcript: {e}"
+
+
 # Tool 5: YouTube Video Questions
 def render_youtube_video_questions():
     """Render the YouTube Video Questions tool."""
     st.markdown("<div class='sub-header'>🎥 YouTube Video Questions</div>", unsafe_allow_html=True)
-    
+    st.markdown("Generates questions **based on the actual transcript** of a YouTube video.")
+
     with st.form(key="youtube_questions_form"):
         video_url = st.text_input("YouTube Video URL", placeholder="e.g., https://www.youtube.com/watch?v=...")
-        video_topic = st.text_input("Video Topic/Title", placeholder="e.g., Photosynthesis Explained")
-        
+        # Video topic is less critical now, but can provide context if transcript fails
+        # video_topic = st.text_input("Video Topic/Title (Optional Fallback)", placeholder="e.g., Photosynthesis Explained")
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
-            grade_level = st.selectbox("Grade Level", 
+            grade_level = st.selectbox("Grade Level",
                                      options=["Primary (1-3)", "Primary (4-6)", "Secondary (7-9)", "Secondary (10-12)"])
-            question_focus = st.multiselect("Question Focus", 
-                                          options=["Comprehension", "Analysis", "Application", "Prediction", 
-                                                  "Evaluation", "Connection to Curriculum"],
-                                          default=["Comprehension", "Analysis"])
-        
+            question_focus = st.multiselect("Question Focus",
+                                          options=["Comprehension", "Analysis", "Application", "Prediction",
+                                                  "Evaluation", "Connection to Curriculum", "Summarization", "Fact-Checking"],
+                                          default=["Comprehension", "Analysis", "Summarization"])
+
         with col2:
-            num_questions = st.slider("Number of Questions", min_value=3, max_value=10, value=5)
-            language = st.selectbox("Language", options=["English", "Bahasa Melayu"])
-        
-        learning_objectives = st.text_area("Learning Objectives (Optional)", 
+            num_questions = st.slider("Number of Questions", min_value=3, max_value=15, value=5) # Increased max slightly
+            language = st.selectbox("Language of Questions", options=["English", "Bahasa Melayu"])
+            transcript_lang_code = 'en' if language == "English" else 'ms' # Map UI language to transcript code
+
+        learning_objectives = st.text_area("Learning Objectives (Optional)",
                                         placeholder="What should students learn from this video?")
-        
-        submit_button = st.form_submit_button(label="Generate Video Questions")
-    
+
+        submit_button = st.form_submit_button(label="Generate Video Questions from Transcript")
+
     if submit_button:
-        if not video_topic:
-            st.error("Please enter a video topic/title.")
-        else:
-            with st.spinner("Generating video questions..."):
-                # Join question focus areas with commas
-                focus_str = ", ".join(question_focus)
-                
-                # Video URL note
-                video_note = f"based on the YouTube video at {video_url}" if video_url else f"about {video_topic}"
-                
-                prompt = f"""
-                Create {num_questions} questions in {language} {video_note} suitable for {grade_level} students.
-                
-                {f"Learning Objectives: {learning_objectives}" if learning_objectives else ""}
-                
-                Focus on these question types: {focus_str}
-                
-                For each question:
-                1. Clearly indicate the question type (e.g., Comprehension, Analysis, etc.)
-                2. Write a clear, focused question that encourages students to engage with the video content
-                3. Provide sample answer(s) or criteria for successful responses
-                
-                Include a mix of:
-                - Before viewing questions (to activate prior knowledge)
-                - During viewing questions (to maintain engagement)
-                - After viewing questions (to assess understanding and extend thinking)
-                
-                Format each question with a clear indication of when it should be asked (before/during/after) and the question type.
-                """
-                
-                result = call_gemini_api(prompt, st.session_state['api_key'])
-                
-                if result:
-                    display_result("Generated Video Questions", result)
-                    
-                    # Save to history
-                    save_to_history(st.session_state, "YouTube Video Questions", 
-                                   {"video_topic": video_topic, "video_url": video_url, 
-                                    "grade_level": grade_level, "question_focus": focus_str,
-                                    "num_questions": num_questions}, 
-                                   result)
+        if not video_url:
+            st.error("Please enter a YouTube Video URL.")
+            return # Stop processing
+
+        video_id = get_video_id(video_url)
+        if not video_id:
+            st.error("Could not extract a valid Video ID from the URL. Please check the link.")
+            return # Stop processing
+
+        with st.spinner(f"Fetching transcript for video ID: {video_id}..."):
+            transcript_text, error_msg = get_transcript(video_id, transcript_lang_code)
+
+        if error_msg:
+            st.error(f"Failed to get transcript: {error_msg}")
+            st.warning("Cannot generate questions based on video content without a transcript.")
+            # Optionally, you could fall back to the old topic-based generation here,
+            # but it's better to be clear that it failed.
+            return # Stop processing
+
+        if not transcript_text:
+             st.error("Fetched transcript appears to be empty.")
+             return # Stop processing
+
+        # --- Transcript Fetched Successfully ---
+        with st.spinner("Transcript found! Generating questions based on video content..."):
+            focus_str = ", ".join(question_focus)
+
+            # Limit transcript length to avoid exceeding API context limits (adjust as needed)
+            # A simple truncation strategy. More complex chunking/summarization might be needed for very long videos.
+            MAX_TRANSCRIPT_CHARS = 15000 # Example limit, adjust based on your model's context window
+            if len(transcript_text) > MAX_TRANSCRIPT_CHARS:
+                st.warning(f"Transcript is very long ({len(transcript_text)} chars). Truncating to {MAX_TRANSCRIPT_CHARS} characters for analysis.")
+                transcript_text = transcript_text[:MAX_TRANSCRIPT_CHARS]
+
+            prompt = f"""
+            You are an expert educational content creator. Based **strictly** on the following YouTube video transcript, create {num_questions} questions in **{language}** suitable for **{grade_level}** students.
+
+            **Video Transcript:**
+            ```
+            {transcript_text}
+            ```
+
+            **Instructions:**
+            1.  Focus on these question types: **{focus_str}**. Ensure a mix if multiple types are selected.
+            2.  Generate questions **directly related to the content, examples, and information presented in the transcript**. Do NOT use external knowledge.
+            3.  {f"Align questions with these Learning Objectives if provided: {learning_objectives}" if learning_objectives else "Focus on understanding the key points of the transcript."}
+            4.  For each question:
+                *   Clearly indicate the intended **Question Type** (e.g., Comprehension, Analysis).
+                *   Write a clear, concise question in **{language}**.
+                *   Provide a **Sample Answer** or **Key Points** expected in a good response, based *only* on the transcript.
+            5.  Consider including a mix of questions suitable for different points (e.g., recalling facts, analyzing arguments, summarizing sections). Suggest if a question is best for 'During Viewing' or 'After Viewing' based on its nature.
+
+            **Output Format:**
+            Present each question clearly numbered, with its type, the question itself, and the sample answer/key points.
+            Example:
+            1.  **Type:** Comprehension (After Viewing)
+                **Question:** According to the video transcript, what are the three main stages discussed?
+                **Answer Key Points:** The transcript mentions Stage A, Stage B, and Stage C as the main stages.
+            """
+
+            # Ensure you have the call_gemini_api function available
+            # Make sure it handles potential API errors
+            try:
+                 result = call_gemini_api(prompt, st.session_state.get('api_key')) # Use .get for safety
+
+                 if result:
+                     display_result("Generated Video Questions (from Transcript)", result) # Assuming display_result exists
+
+                     # Save to history (include info that transcript was used)
+                     save_to_history(st.session_state, "YouTube Video Questions",
+                                    {"video_url": video_url,
+                                     "grade_level": grade_level, "question_focus": focus_str,
+                                     "num_questions": num_questions, "transcript_used": True,
+                                     "transcript_length": len(transcript_text)},
+                                    result) # Assuming save_to_history exists
+                 else:
+                      st.error("The AI model did not return a result.")
+
+            except Exception as e:
+                 st.error(f"An error occurred while calling the AI model: {e}")
+                 # Log the error for debugging if needed
